@@ -10,14 +10,17 @@ import glob
 # We also need to include include various numerix libraries that the other functions call.
 
 opts = {
-    'py2exe': { "includes" : ["sip", "matplotlib.backends",  "matplotlib.backends.backend_qt4agg",
-                               "matplotlib.figure","pylab", "numpy","matplotlib.backends.backend_tkagg"],
-                'excludes': ['_gtkagg', '_tkagg', '_agg2', '_cairo', '_cocoaagg',
-                             '_fltkagg', '_gtk', '_gtkcairo', ],
-                'dll_excludes': ['libgdk-win32-2.0-0.dll',
-                                 'libgobject-2.0-0.dll']
-              }
-       }
+    'py2exe': {"includes": ["matplotlib.backends",  "matplotlib.backends.backend_qt4agg",
+                            "matplotlib.figure", "pylab", "numpy", "matplotlib.backends.backend_tkagg"],
+               'excludes': ['_gtkagg', '_tkagg', '_agg2', '_cairo', '_cocoaagg',
+                            '_fltkagg', '_gtk', '_gtkcairo', ],
+               'dll_excludes': ['libgdk-win32-2.0-0.dll', 'libgobject-2.0-0.dll', 'MSVCP90.dll',
+                                'libiomp5md.dll']
+               }
+}
+# Changes made to the vesion that compiled in windows7
+#  - removed sip from py2exe:includes
+#  - MSVCP90.dll and libiomp5md.dll added to avoid compilation problems
 
 # Save matplotlib-data to mpl-data ( It is located in the matplotlib\mpl-data
 # folder and the compiled programs will look for it in \mpl-data
@@ -30,4 +33,4 @@ data_files = [(r'mpl-data', glob.glob(r'C:\Python27\Lib\site-packages\matplotlib
                   (r'mpl-data\fonts',glob.glob(r'C:\Python27\Lib\site-packages\matplotlib\mpl-data\fonts\*.*'))]
 
 #for console program use 'console = [{"script" : "scriptname.py"}]
-setup(windows=[{"script" : "perfiles2D.py"}], options=opts,   data_files=data_files)
+setup(windows=[{"script": "perfiles2D.py"}], options=opts,   data_files=data_files)
