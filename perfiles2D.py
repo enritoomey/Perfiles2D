@@ -3,7 +3,7 @@ import layout_lecturaPerfil as layout
 import profile_characteristics as profile
 from PySide.QtCore import *
 from PySide.QtGui import *
-import sys, ipdb
+import sys
 import matplotlib #Para los graficos
 matplotlib.use('Qt4Agg')
 matplotlib.rcParams['backend.qt4']='PySide'

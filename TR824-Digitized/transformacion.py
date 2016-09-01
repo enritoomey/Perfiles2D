@@ -6,7 +6,6 @@ Created on Wed Mar 25 00:18:27 2015
 """
 
 import os
-import sys
 File = open(os.getcwd()+'\\NACA.LST')
 data = File.readlines()
 File.close()

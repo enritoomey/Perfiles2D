@@ -15,7 +15,7 @@ opts = {
                'excludes': ['_gtkagg', '_tkagg', '_agg2', '_cairo', '_cocoaagg',
                             '_fltkagg', '_gtk', '_gtkcairo', ],
                'dll_excludes': ['libgdk-win32-2.0-0.dll', 'libgobject-2.0-0.dll', 'MSVCP90.dll',
-                                'libiomp5md.dll']
+                                'MSVCR90.dll', 'libiomp5md.dll']
                }
 }
 # Changes made to the vesion that compiled in windows7
