@@ -1,17 +1,19 @@
 # -*- coding: iso-8859-1 -*-
-# TODO: Convertir todo esto en una clase
-
+from scipy import interpolate
+from scipy.optimize import fmin
 
 class Airfoil:
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, reynold=4e3):
         self.file_name = file_name
-        self.reynolds = ['Re_3', 'Re_6', 'Re_9', 'Re_std']
+        self.reynolds = {'Re3':3e6, 'Re6':6e6, 'Re9':9e6, 'std':0}
         self.AIRFOIL_DATA = dict()
-        for reynold in self.reynolds:
+        for reynold in self.reynolds.keys():
             self.AIRFOIL_DATA[reynold] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
         self.lectura_perfiles(file_name)
-        self.get_aitfoil_characteristics()
+        for reynold in self.reynolds.keys():
+            self.get_aitfoil_characteristics(reynold)
+        self.reynold = self.get_reynold_key(reynold)
 
     def lectura_perfiles(self, file_name):
         aux_file = open(file_name)
@@ -40,141 +42,193 @@ class Airfoil:
             else:
                 i += 1
 
+    def cl_aoa(self, alpha):
+        aoa_l = [aoa for aoa,cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        spline = interpolate.splrep(aoa_l, cl_l, s=0)
+        return interpolate.splev(alpha, spline, der=0)
 
-    def get_aitfoil_characteristics(self):
-        #Calculo de los parametros TODO: meter todo esto en una función
-        for reynold in self.reynolds:
-            self.AIRFOIL_DATA[reynold]['keys']=[]
-            c2 = 0
-            c3 = 0
-            c4 = 0
-            c5 = 0
-            if  (self.AIRFOIL_DATA[reynold]['AoA_Cl'] != [] and self.AIRFOIL_DATA[reynold]['Cl_Cd'] != []) :
-                self.AIRFOIL_DATA[reynold]['keys'] = ['CL_max', 'beta_max',
-                        'CL_betamax', 'alpha_betamax', 'dbeta_dalpha', 'b_max',
-                        'CD_min', 'CL_CD_max', 'cuspide']
-                CL_max = self.AIRFOIL_DATA[reynold]['AoA_Cl'][0][1]
-                beta_max = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]\
-                        /self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
-                CL_betamax = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]
-                CD_betamax = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
-                b_max = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]**1.5\
-                        /self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
-                CD_min = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
+    def cd_cl(self, cl):
+        cl_l = [cl for cl,cd in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        cd_l = [cd for cl,cd in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        spline = interpolate.splrep(cl_l, cd_l, s=0)
+        return interpolate.splev(cl, spline, der=0)
 
-                for i in range(len(self.AIRFOIL_DATA[reynold]['Cl_Cd'])):
-                    CL = self.AIRFOIL_DATA[reynold]['Cl_Cd'][i][0]
-                    CD = self.AIRFOIL_DATA[reynold]['Cl_Cd'][i][1]
-                    beta = CL/CD
-                    b = abs(CL)**1.5/CD
-                    if beta > beta_max:
-                        beta_max = beta
-                        CL_betamax = CL
-                        CD_betamax = CD
-                        c2 = i
-                    if b > b_max and CL > 0:
-                        b_max = b
-                        c3 = i
-                    if CD < CD_min:
-                        CD_min = CD
-                        c4 = i
+    def cd_aoa(self, alpha):
+        return self.cd_cl(self.cl_aoa(alpha))
 
-                for i in range(len(self.AIRFOIL_DATA[reynold]['AoA_Cl'])):
-                    AoA = self.AIRFOIL_DATA[reynold]['AoA_Cl'][i][0]
-                    CL = self.AIRFOIL_DATA[reynold]['AoA_Cl'][i][1]
-                    if CL > CL_max:
-                        CL_max = CL
-                        c1 = i
-                    if CL > CL_betamax and i > 3:
-                        c5 = i
+    def cm_aoa(self, alpha):
+        aoa_l = [aoa for aoa,cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        cm_l = [aoa for aoa,cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        spline = interpolate.splrep(aoa_l, cm_l, s=0)
+        return interpolate.splev(alpha, spline, der=0)
 
-                if c2 != 0 and c2 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
-                    p1_beta = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0],
-                               self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0]\
-                            / self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][1])
-                    p2_beta = (CL_betamax,beta_max)
-                    p3_beta = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0],
-                               self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0]\
-                            / self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][1])
-                    CL_betamax, beta_max = self.interpol_max(p1_beta, p2_beta, p3_beta)
-                    #print(beta_max)
-                    #print(CL_betamax)
+    @property
+    def cl_max(self):
+        alpha_0 = self.AIRFOIL_DATA[self.reynold]['AoA_Cl'][-1][0]
+        rta = -fmin(-self.cl_aoa, x0=alpha_0, args=self, full_output=True)
+        return rta[1]
 
-                alpha_betamax = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0]
-                                 + (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0]
-                                 - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0])
-                                 / (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][1]
-                                 - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])
-                                 *(CL_betamax - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1]))
-                #print(alpha_betamax)
+    @property
+    def beta_max(self):
+        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        f = lambda cl: cl / self.cd_cl(cl)
+        rta = -fmin(-f, cl0, full_output=True)
+        return rta[1]
 
-                if c3 != 0 and c3 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
-                    p1_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][0],
-                            abs(self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][0])**1.5\
-                            /self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][1])
-                    p2_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3][0], b_max)
-                    p3_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3-1][0],
-                            self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3-1][1])
-                    b_max = self.interpol_max(p1_b, p2_b, p3_b)[1]
-                    #print(b_max)
+    @property
+    def cl_beta_max(self):
+        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        f = lambda cl: cl / self.cd_cl(cl)
+        rta = fmin(-f, cl0, full_output=True)
+        return rta[0]
 
-                if c4 != 0 and c4 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
-                    p1_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4+1][0],
-                             self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4+1][1])
-                    p2_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4][0], CD_min)
-                    p3_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4-1][0],
-                             self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4-1][1])
-                    CD_min = self.interpol_max(p1_CD, p2_CD, p3_CD)[1]
-                    #print(CD_min)
+    @property
+    def cd_min(self):
+        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        rta = fmin(self.cd_cl, x0=cl0, args=self, full_output=True)
+        return rta[1]
 
-                if c5 != 0 and c5 != len(self.AIRFOIL_DATA[reynold]['AoA_Cl']):
-                    p1_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0],
-                             self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])
-                    p2_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0],CL_max)
-                    p3_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5-1][0],
-                             self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5-1][1])
-                    CL_max = self.interpol_max(p1_CL, p2_CL, p3_CL)[1]
-                    #print(CL_max)
+    @property
+    def b_max(self):
+        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        f = lambda x: - x**1.5 / self.cd_cl(x)
+        rta = fmin(f,x0=cl0, full_output=True)
+        return -rta[1]
 
-                self.AIRFOIL_DATA[reynold]['CL_max'] = CL_max
-                self.AIRFOIL_DATA[reynold]['beta_max'] = beta_max
-                self.AIRFOIL_DATA[reynold]['CL_betamax'] = CL_betamax
-                self.AIRFOIL_DATA[reynold]['alpha_betamax'] = alpha_betamax
-                self.AIRFOIL_DATA[reynold]['b_max'] = b_max
-                self.AIRFOIL_DATA[reynold]['CD_min'] = CD_min
 
-                # valoracion de la cuspide (version simple)
-                # La valoracion de la cuspide se calcula como la relacion delta_CL/delta_alpha
-                # en la region alrededor de CLmax. A mayor delta_CL/delta_alpha, peor la valoracion
-                # de la cuspide, ya que habra un cambio mas abrupto del CL a similar variación de
-                # alpha. Los limites de las tres categorias "bueno", "medio" y "malo" son arbitrarios.
-                cuspide = (CL_max-min(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1-1][1],
-                                      self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1+1][1]))\
-                      /(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1-1][0]
-                      - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1+1][0])
-                if cuspide < 0.04:
-                    cuspide_name = 'bueno'
-                elif cuspide > 0.08:
-                    cuspide_name = 'malo'
-                else : cuspide_name = 'medio'
-                self.AIRFOIL_DATA[reynold]['cuspide'] = cuspide_name
+    def get_all_airfoil_characteristics(self, reynold):
+        self.AIRFOIL_DATA[reynold]['keys']=[]
+        c2 = 0
+        c3 = 0
+        c4 = 0
+        c5 = 0
+        if  (self.AIRFOIL_DATA[reynold]['AoA_Cl'] != [] and self.AIRFOIL_DATA[reynold]['Cl_Cd'] != []) :
+            self.AIRFOIL_DATA[reynold]['keys'] = ['CL_max', 'beta_max',
+                    'CL_betamax', 'alpha_betamax', 'dbeta_dalpha', 'b_max',
+                    'CD_min', 'CL_CD_max', 'cuspide']
+            CL_max = self.AIRFOIL_DATA[reynold]['AoA_Cl'][0][1]
+            beta_max = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]\
+                    /self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
+            CL_betamax = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]
+            CD_betamax = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
+            b_max = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][0]**1.5\
+                    /self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
+            CD_min = self.AIRFOIL_DATA[reynold]['Cl_Cd'][0][1]
 
-                # d\beta/d\alpha (version simple)
-                dCD_dCL = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][1]
-                       - self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][1])\
-                       / (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0]
-                       - self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0])
+            for i in range(len(self.AIRFOIL_DATA[reynold]['Cl_Cd'])):
+                CL = self.AIRFOIL_DATA[reynold]['Cl_Cd'][i][0]
+                CD = self.AIRFOIL_DATA[reynold]['Cl_Cd'][i][1]
+                beta = CL/CD
+                b = abs(CL)**1.5/CD
+                if beta > beta_max:
+                    beta_max = beta
+                    CL_betamax = CL
+                    CD_betamax = CD
+                    c2 = i
+                if b > b_max and CL > 0:
+                    b_max = b
+                    c3 = i
+                if CD < CD_min:
+                    CD_min = CD
+                    c4 = i
 
-                dCL_dalpha = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][1]
-                    -self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])\
-                    /(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0]
-                    -self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0])
+            for i in range(len(self.AIRFOIL_DATA[reynold]['AoA_Cl'])):
+                AoA = self.AIRFOIL_DATA[reynold]['AoA_Cl'][i][0]
+                CL = self.AIRFOIL_DATA[reynold]['AoA_Cl'][i][1]
+                if CL > CL_max:
+                    CL_max = CL
+                    c1 = i
+                if CL > CL_betamax and i > 3:
+                    c5 = i
 
-                dbeta_dalpha = (1-beta_max*dCD_dCL)*dCL_dalpha/CD_betamax
-                self.AIRFOIL_DATA[reynold]['dbeta_dalpha'] = dbeta_dalpha
+            if c2 != 0 and c2 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
+                p1_beta = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0],
+                           self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0]\
+                        / self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][1])
+                p2_beta = (CL_betamax,beta_max)
+                p3_beta = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0],
+                           self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0]\
+                        / self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][1])
+                CL_betamax, beta_max = self.interpol_max(p1_beta, p2_beta, p3_beta)
+                #print(beta_max)
+                #print(CL_betamax)
 
-                CL_CD_max = CL_max/CD_min
-                self.AIRFOIL_DATA[reynold]['CL_CD_max'] = CL_CD_max
+            alpha_betamax = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0]
+                             + (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0]
+                             - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0])
+                             / (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][1]
+                             - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])
+                             *(CL_betamax - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1]))
+            #print(alpha_betamax)
+
+            if c3 != 0 and c3 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
+                p1_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][0],
+                        abs(self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][0])**1.5\
+                        /self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3+1][1])
+                p2_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3][0], b_max)
+                p3_b = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3-1][0],
+                        self.AIRFOIL_DATA[reynold]['Cl_Cd'][c3-1][1])
+                b_max = self.interpol_max(p1_b, p2_b, p3_b)[1]
+                #print(b_max)
+
+            if c4 != 0 and c4 != len(self.AIRFOIL_DATA[reynold]['Cl_Cd']):
+                p1_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4+1][0],
+                         self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4+1][1])
+                p2_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4][0], CD_min)
+                p3_CD = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4-1][0],
+                         self.AIRFOIL_DATA[reynold]['Cl_Cd'][c4-1][1])
+                CD_min = self.interpol_max(p1_CD, p2_CD, p3_CD)[1]
+                #print(CD_min)
+
+            if c5 != 0 and c5 != len(self.AIRFOIL_DATA[reynold]['AoA_Cl']):
+                p1_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0],
+                         self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])
+                p2_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0],CL_max)
+                p3_CL = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5-1][0],
+                         self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5-1][1])
+                CL_max = self.interpol_max(p1_CL, p2_CL, p3_CL)[1]
+                #print(CL_max)
+
+            self.AIRFOIL_DATA[reynold]['CL_max'] = CL_max
+            self.AIRFOIL_DATA[reynold]['beta_max'] = beta_max
+            self.AIRFOIL_DATA[reynold]['CL_betamax'] = CL_betamax
+            self.AIRFOIL_DATA[reynold]['alpha_betamax'] = alpha_betamax
+            self.AIRFOIL_DATA[reynold]['b_max'] = b_max
+            self.AIRFOIL_DATA[reynold]['CD_min'] = CD_min
+
+            # valoracion de la cuspide (version simple)
+            # La valoracion de la cuspide se calcula como la relacion delta_CL/delta_alpha
+            # en la region alrededor de CLmax. A mayor delta_CL/delta_alpha, peor la valoracion
+            # de la cuspide, ya que habra un cambio mas abrupto del CL a similar variación de
+            # alpha. Los limites de las tres categorias "bueno", "medio" y "malo" son arbitrarios.
+            cuspide = (CL_max-min(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1-1][1],
+                                  self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1+1][1]))\
+                  /(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1-1][0]
+                  - self.AIRFOIL_DATA[reynold]['AoA_Cl'][c1+1][0])
+            if cuspide < 0.04:
+                cuspide_name = 'bueno'
+            elif cuspide > 0.08:
+                cuspide_name = 'malo'
+            else : cuspide_name = 'medio'
+            self.AIRFOIL_DATA[reynold]['cuspide'] = cuspide_name
+
+            # d\beta/d\alpha (version simple)
+            dCD_dCL = (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][1]
+                   - self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][1])\
+                   / (self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2-1][0]
+                   - self.AIRFOIL_DATA[reynold]['Cl_Cd'][c2+1][0])
+
+            dCL_dalpha = (self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][1]
+                -self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][1])\
+                /(self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5][0]
+                -self.AIRFOIL_DATA[reynold]['AoA_Cl'][c5+1][0])
+
+            dbeta_dalpha = (1-beta_max*dCD_dCL)*dCL_dalpha/CD_betamax
+            self.AIRFOIL_DATA[reynold]['dbeta_dalpha'] = dbeta_dalpha
+
+            CL_CD_max = CL_max/CD_min
+            self.AIRFOIL_DATA[reynold]['CL_CD_max'] = CL_CD_max
 
             # calculo del Cmo promedio en la zona lineal
             if self.AIRFOIL_DATA[reynold]['AoA_Cm'] != []:
@@ -224,7 +278,7 @@ class Airfoil:
 
 
     # TODO: replace by numpy.lingalg method
-    def interpol_max(p1, p2, p3):
+    def interpol_max(self, p1, p2, p3):
         x1 = p1[0]
         x2 = p2[0]
         x3 = p3[0]
@@ -237,3 +291,15 @@ class Airfoil:
         Ymax = (y1 * (x2 ** 2 * x3 - x3 ** 2 * x2) + y2 * (x3 ** 2 * x1 - x1 ** 2 * x3) + y3 * (x1 ** 2 * x2 - x2 ** 2 * x1)
                 + (Xmax / 2.0) * (y1 * (x3 ** 2 - x2 ** 2) + y2 * (x1 ** 2 - x3 ** 2) + y3 * (x2 ** 2 - x1 ** 2))) / det
         return Xmax, Ymax
+
+    def get_reynold_key(self, reynold):
+        try:
+            Re = float(reynold)
+            if Re < 3e6:
+                return 'Re3'
+            elif Re < 6e6:
+                return 'Re6'
+            else:
+                return 'Re9'
+        except ValueError:
+            return 'std'
