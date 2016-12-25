@@ -6,13 +6,13 @@ class Airfoil:
 
     def __init__(self, file_name, reynold=4e3):
         self.file_name = file_name
-        self.reynolds = {'Re3':3e6, 'Re6':6e6, 'Re9':9e6, 'std':0}
+        self.reynolds = {'Re_3':3e6, 'Re_6':6e6, 'Re_9':9e6, 'std':0}
         self.AIRFOIL_DATA = dict()
-        for reynold in self.reynolds.keys():
-            self.AIRFOIL_DATA[reynold] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
+        for re in self.reynolds.keys():
+            self.AIRFOIL_DATA[re] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
         self.lectura_perfiles(file_name)
-        for reynold in self.reynolds.keys():
-            self.get_aitfoil_characteristics(reynold)
+        for re in self.reynolds.keys():
+            self.get_airfoil_characteristics(re)
         self.reynold = self.get_reynold_key(reynold)
 
     def lectura_perfiles(self, file_name):
@@ -97,7 +97,7 @@ class Airfoil:
         return -rta[1]
 
 
-    def get_all_airfoil_characteristics(self, reynold):
+    def get_airfoil_characteristics(self, reynold):
         self.AIRFOIL_DATA[reynold]['keys']=[]
         c2 = 0
         c3 = 0
@@ -256,7 +256,7 @@ class Airfoil:
             elif data_set == 3:
                 self.AIRFOIL_DATA['Re_9']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 4:
-                self.AIRFOIL_DATA['Re_std']['AoA_Cl'].append((x_data, y_data))
+                self.AIRFOIL_DATA['std']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 7:
                 self.AIRFOIL_DATA['Re_3']['AoA_Cm'].append((x_data, y_data))
             elif data_set == 8:
@@ -264,7 +264,7 @@ class Airfoil:
             elif data_set == 9:
                 self.AIRFOIL_DATA['Re_9']['AoA_Cm'].append((x_data, y_data))
             elif data_set == 10:
-                self.AIRFOIL_DATA['Re_std']['AoA_Cm'].append((x_data, y_data))
+                self.AIRFOIL_DATA['std']['AoA_Cm'].append((x_data, y_data))
 
         elif block == 2:
             if data_set == 1:
@@ -274,7 +274,7 @@ class Airfoil:
             elif data_set == 3:
                 self.AIRFOIL_DATA['Re_9']['Cl_Cd'].append((x_data, y_data))
             elif data_set == 4:
-                self.AIRFOIL_DATA['Re_std']['Cl_Cd'].append((x_data, y_data))
+                self.AIRFOIL_DATA['std']['Cl_Cd'].append((x_data, y_data))
 
 
     # TODO: replace by numpy.lingalg method
@@ -295,11 +295,11 @@ class Airfoil:
     def get_reynold_key(self, reynold):
         try:
             Re = float(reynold)
-            if Re < 3e6:
-                return 'Re3'
-            elif Re < 6e6:
-                return 'Re6'
+            if Re <= 3e6:
+                return 'Re_3'
+            elif Re <= 6e6:
+                return 'Re_6'
             else:
-                return 'Re9'
+                return 'Re_9'
         except ValueError:
             return 'std'
