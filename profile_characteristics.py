@@ -43,14 +43,18 @@ class Airfoil:
                 i += 1
 
     def cl_aoa(self, alpha):
-        aoa_l = [aoa for aoa,cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
         cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        aoa_l.reverse()
+        cl_l.reverse()
         spline = interpolate.splrep(aoa_l, cl_l, s=0)
         return interpolate.splev(alpha, spline, der=0)
 
     def cd_cl(self, cl):
-        cl_l = [cl for cl,cd in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
-        cd_l = [cd for cl,cd in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        cl_l = [cl for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
+        cd_l = [cd for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
+        cl_l.reverse()
+        cd_l.reverse()
         spline = interpolate.splrep(cl_l, cd_l, s=0)
         return interpolate.splev(cl, spline, der=0)
 
@@ -58,8 +62,10 @@ class Airfoil:
         return self.cd_cl(self.cl_aoa(alpha))
 
     def cm_aoa(self, alpha):
-        aoa_l = [aoa for aoa,cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
-        cm_l = [aoa for aoa,cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        aoa_l = [aoa for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        cm_l = [cm for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        aoa_l.reverse()
+        cm_l.reverse()
         spline = interpolate.splrep(aoa_l, cm_l, s=0)
         return interpolate.splev(alpha, spline, der=0)
 
