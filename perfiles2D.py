@@ -46,7 +46,7 @@ class MainDialog(QDialog, layout.Ui_Dialog):
                     'CD_min', 'CL_CD_max', 'cuspide', 'CM0']
         # Cargamos el formato en que se deben mostrar cada parametro caracteristico
         self.HeadersFormat = ['{:.2f}', '{:.1f}', '{:.2f}', '{:.1f}', '{:.3f}', '{:.1f}',
-                              '{:.5f}', '{:.1f}', str, '{:.2}']
+                              '{:.5f}', '{:.1f}', '{:.2}', '{:.2}']
         self.tableDatos.setVerticalHeaderLabels(self.vHeader)
         self.tableDatos.setHorizontalHeaderLabels(self.Reynolds)
 

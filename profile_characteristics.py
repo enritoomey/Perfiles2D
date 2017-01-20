@@ -14,17 +14,22 @@ logger.addHandler(ch)
 
 class Airfoil:
 
+    class DataNotAvailableError(Exception):
+        pass
+
     def __init__(self, file_name, reynold=4e3):
         logger.debug("Initializing airfoil %r with Reynolds %r", file_name, reynold)
         self.file_name = file_name
         self.reynolds = {'Re3':3e6, 'Re6':6e6, 'Re9':9e6, 'std':0}
+        self.characteristics = ['CL_max', 'beta_max',
+         'CL_betamax', 'alpha_betamax', 'dbeta_dalpha', 'b_max',
+         'CD_min', 'CL_CD_max', 'cuspide']
         self.AIRFOIL_DATA = dict()
         for re in self.reynolds.keys():
             self.AIRFOIL_DATA[re] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
         self.lectura_perfiles(file_name)
+        self.get_airfoil_characteristics()
         self.reynold = self.get_reynold_key(reynold)
-        for re in self.reynolds.keys():
-            self.get_airfoil_characteristics(re)
 
     def lectura_perfiles(self, file_name):
         aux_file = open(file_name)
@@ -76,19 +81,21 @@ class Airfoil:
     def cm_aoa(self, alpha):
         aoa_l = [aoa for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
         cm_l = [cm for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+        if len(aoa_l) == 0 or len(cm_l) == 0:
+            raise self.DataNotAvailableError
         aoa_l.reverse()
         cm_l.reverse()
         spline = interpolate.splrep(aoa_l, cm_l, s=0)
         return interpolate.splev(alpha, spline, der=0)
 
-    def beta(self,cl):
+    def beta(self, cl):
         return cl / self.cd_cl(cl)
 
     def b(self, cl):
         return cl ** 1.5 / self.cd_cl(cl)
 
     def _cl_max_func(self):
-        alpha_0 = 0.0#self.AIRFOIL_DATA[self.reynold]['AoA_Cl'][0][0]
+        alpha_0 = 0.0
         f = lambda alpha: -self.cl_aoa(alpha)
         return fmin(f, x0=alpha_0, full_output=True, disp=False)
 
@@ -151,18 +158,32 @@ class Airfoil:
         The biggest this value is, the smother the stall is """
         dcl_dalpha1 = derivative(self.cl_aoa, x0=self.alpha_cl_max, dx=0.001, n=1)
         dcl_dalpha2 = derivative(self.cl_aoa, x0=self.alpha_cl_max, dx=0.001, n=2)
-        return (1+dcl_dalpha1**2)**1.5/abs(dcl_dalpha2)
+        if dcl_dalpha2 == 0:
+            return float('Inf')
+        return float((1+dcl_dalpha1**2)**1.5/abs(dcl_dalpha2))
 
-    def get_airfoil_characteristics(self, reynolds):
-        self.AIRFOIL_DATA[reynolds]['Cl_max'] = self.cl_max
-        self.AIRFOIL_DATA[reynolds]['beta_max'] = self.beta_max
-        self.AIRFOIL_DATA[reynolds]['CL_betamax'] = self.cl_beta_max
-        self.AIRFOIL_DATA[reynolds]['alpha_betamax'] = self.alpha_beta_max
-        self.AIRFOIL_DATA[reynolds]['dbeta_dalpha'] = self.dbeta_dalpha
-        self.AIRFOIL_DATA[reynolds]['b_max'] = self.b_max
-        self.AIRFOIL_DATA[reynolds]['CD_min'] = self.cd_min
-        self.AIRFOIL_DATA[reynolds]['CL_CD_max'] = self.cl_max / self.cd_min
-        self.AIRFOIL_DATA[reynolds]['cuspide'] = self.cuspide
+    def get_airfoil_characteristics(self):
+        for re in self.reynolds:
+            self.reynold = re
+            try:
+                self.AIRFOIL_DATA[re]['Cl_max'] = self.cl_max
+                self.AIRFOIL_DATA[re]['cuspide'] = self.cuspide
+            except self.DataNotAvailableError:
+                logger.warning("Not cl vs alpha data available for reynolds %r", re)
+                for ch in self.characteristics: self.AIRFOIL_DATA[re][ch] = float('Nan')
+            else:
+                try:
+                    self.AIRFOIL_DATA[re]['beta_max'] = self.beta_max
+                    self.AIRFOIL_DATA[re]['CL_betamax'] = self.cl_beta_max
+                    self.AIRFOIL_DATA[re]['alpha_betamax'] = self.alpha_beta_max
+                    self.AIRFOIL_DATA[re]['dbeta_dalpha'] = self.dbeta_dalpha
+                    self.AIRFOIL_DATA[re]['b_max'] = self.b_max
+                    self.AIRFOIL_DATA[re]['CD_min'] = self.cd_min
+                    self.AIRFOIL_DATA[re]['CL_CD_max'] = self.cl_max / self.cd_min
+                except self.DataNotAvailableError:
+                    logger.warning("Not cd vs cl data available for reynolds %r", re)
+                    gen = (ch for ch in self.characteristics if ch not in ['Cl_max', 'cuspide'])
+                    for ch in gen: self.AIRFOIL_DATA[re][ch]=float('Nan')
 
     def get_airfoil_characteristics_old(self, reynold):
         self.AIRFOIL_DATA[reynold]['keys']=[]
