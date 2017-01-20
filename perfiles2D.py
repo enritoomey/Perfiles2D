@@ -17,7 +17,6 @@ class MainDialog(QDialog, layout.Ui_Dialog):
     def __init__(self, parent=None):
         super(MainDialog, self).__init__(parent)
         self.setupUi(self)
-        self.AIRFOIL_DATA = None
 
         # Generamos dos figuras, cada una luego asociada a un canvas, que a su vez tiene como padre una de las pestanias
         # self.tab -> contiene la pestania titulada "Diagrama P-S"
@@ -63,13 +62,13 @@ class MainDialog(QDialog, layout.Ui_Dialog):
     def Open(self):
         dir = '.'
         fileAdress = QFileDialog.getOpenFileName(self,"Selecionar Perfil",dir,filter="Text File (*.txt)")
-        self.AIRFOIL_DATA = profile.lectura_perfiles(fileAdress[0])
-        #print self.AIRFOIL_DATA
+        self.airfoil = profile.Airfoil(fileAdress[0])
+        #print self.airfoil.AIRFOIL_DATA
 
         for j in range(len(self.Reynolds)):
             for i in range(len(self.vHeader)):
-                if self.vHeader[i] in self.AIRFOIL_DATA[self.Reynolds[j]].keys():
-                    item = QTableWidgetItem(self.HeadersFormat[i].format(self.AIRFOIL_DATA[self.Reynolds[j]][self.vHeader[i]]))
+                if self.vHeader[i] in self.airfoil.AIRFOIL_DATA[self.Reynolds[j]].keys():
+                    item = QTableWidgetItem(self.HeadersFormat[i].format(self.airfoil.AIRFOIL_DATA[self.Reynolds[j]][self.vHeader[i]]))
                     self.tableDatos.setItem(i, j, item)
         nombrePerfil = fileAdress[0].split('/')[-1].split('.')[0]
         #print nombrePerfil
@@ -96,10 +95,10 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         self.canvas2.draw()
 
     def plotReynolds(self, reynolds, color):
-        x1 = [value[0] for value in self.AIRFOIL_DATA[reynolds]['AoA_Cl']]
-        y1 = [value[1] for value in self.AIRFOIL_DATA[reynolds]['AoA_Cl']]
-        x2 = [value[0] for value in self.AIRFOIL_DATA[reynolds]['Cl_Cd']]
-        y2 = [value[1] for value in self.AIRFOIL_DATA[reynolds]['Cl_Cd']]
+        x1 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
+        y1 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
+        x2 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['Cl_Cd']]
+        y2 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['Cl_Cd']]
         self.axes1.plot(x1, y1, color)
         self.axes2.plot(x2, y2, color)
 
