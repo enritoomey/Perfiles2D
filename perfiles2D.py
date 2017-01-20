@@ -81,16 +81,16 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         self.axes2.clear()
 
         if self.checkBox_Re3.isChecked():
-            self.plotReynolds('Re_3', 'b')
+            self.plotReynolds('Re3', 'b')
 
         if self.checkBox_Re6.isChecked():
-            self.plotReynolds('Re_6', 'r')
+            self.plotReynolds('Re6', 'r')
 
         if self.checkBox_Re9.isChecked():
-            self.plotReynolds('Re_9', 'g')
+            self.plotReynolds('Re9', 'g')
 
         if self.checkBox_SR.isChecked():
-            self.plotReynolds('Re_std', 'y')
+            self.plotReynolds('std', 'y')
 
         self.canvas1.draw()
         self.canvas2.draw()
