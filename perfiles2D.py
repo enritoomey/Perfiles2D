@@ -40,7 +40,7 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         #Ponemos el primer checkbox en "checked"
         self.checkBox_Re3.setCheckState(Qt.Checked)
         # Cargamos los numeros de Reynolds
-        self.Reynolds = ['Re_3', 'Re_6', 'Re_9', 'Re_std']
+        self.Reynolds = ['Re3', 'Re6', 'Re9', 'std']
         # Cargamos los parametros caracteristicos del perfil
         self.vHeader = ['CL_max', 'beta_max',
                     'CL_betamax', 'alpha_betamax', 'dbeta_dalpha', 'b_max',

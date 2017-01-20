@@ -363,10 +363,10 @@ class Airfoil:
         try:
             Re = float(reynold)
             if Re <= 3e6:
-                return 'Re_3'
+                return 'Re3'
             elif Re <= 6e6:
-                return 'Re_6'
+                return 'Re6'
             else:
-                return 'Re_9'
+                return 'Re9'
         except ValueError:
             return 'std'
