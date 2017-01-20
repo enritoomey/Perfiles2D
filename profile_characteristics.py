@@ -1,19 +1,30 @@
 # -*- coding: iso-8859-1 -*-
 from scipy import interpolate
-from scipy.optimize import fmin
+from scipy.optimize import fmin, fsolve
+from scipy.misc import derivative
+import logging
+import numpy as np
+
+logger = logging.getLogger(__name__)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s -%(funcName)s: %(message)s ')
+ch.setFormatter(formatter)
+ch.setLevel(logging.WARNING)
+logger.addHandler(ch)
 
 class Airfoil:
 
     def __init__(self, file_name, reynold=4e3):
+        logger.debug("Initializing airfoil %r with Reynolds %r", file_name, reynold)
         self.file_name = file_name
-        self.reynolds = {'Re_3':3e6, 'Re_6':6e6, 'Re_9':9e6, 'std':0}
+        self.reynolds = {'Re3':3e6, 'Re6':6e6, 'Re9':9e6, 'std':0}
         self.AIRFOIL_DATA = dict()
         for re in self.reynolds.keys():
             self.AIRFOIL_DATA[re] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
         self.lectura_perfiles(file_name)
+        self.reynold = self.get_reynold_key(reynold)
         for re in self.reynolds.keys():
             self.get_airfoil_characteristics(re)
-        self.reynold = self.get_reynold_key(reynold)
 
     def lectura_perfiles(self, file_name):
         aux_file = open(file_name)
@@ -43,6 +54,7 @@ class Airfoil:
                 i += 1
 
     def cl_aoa(self, alpha):
+        logger.debug("cl_sos called with aoa = %r deg", alpha)
         aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
         cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
         aoa_l.reverse()
@@ -50,13 +62,13 @@ class Airfoil:
         spline = interpolate.splrep(aoa_l, cl_l, s=0)
         return interpolate.splev(alpha, spline, der=0)
 
-    def cd_cl(self, cl):
+    def cd_cl(self, cl_input):
         cl_l = [cl for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
         cd_l = [cd for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
         cl_l.reverse()
         cd_l.reverse()
         spline = interpolate.splrep(cl_l, cd_l, s=0)
-        return interpolate.splev(cl, spline, der=0)
+        return interpolate.splev(cl_input, spline, der=0)
 
     def cd_aoa(self, alpha):
         return self.cd_cl(self.cl_aoa(alpha))
@@ -69,41 +81,90 @@ class Airfoil:
         spline = interpolate.splrep(aoa_l, cm_l, s=0)
         return interpolate.splev(alpha, spline, der=0)
 
+    def beta(self,cl):
+        return cl / self.cd_cl(cl)
+
+    def b(self, cl):
+        return cl ** 1.5 / self.cd_cl(cl)
+
+    def _cl_max_func(self):
+        alpha_0 = 0.0#self.AIRFOIL_DATA[self.reynold]['AoA_Cl'][0][0]
+        f = lambda alpha: -self.cl_aoa(alpha)
+        return fmin(f, x0=alpha_0, full_output=True, disp=False)
+
     @property
     def cl_max(self):
-        alpha_0 = self.AIRFOIL_DATA[self.reynold]['AoA_Cl'][-1][0]
-        rta = -fmin(-self.cl_aoa, x0=alpha_0, args=self, full_output=True)
-        return rta[1]
+        return -self._cl_max_func()[1]
+
+    @property
+    def alpha_cl_max(self):
+        return self._cl_max_func()[0]
+
+    def _beta_max_func(self):
+        cl0 = 0.0
+        f = lambda cl: -1.0 * self.beta(cl)
+        return fmin(f, x0=cl0, full_output=True, disp=False)
 
     @property
     def beta_max(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
-        f = lambda cl: cl / self.cd_cl(cl)
-        rta = -fmin(-f, cl0, full_output=True)
-        return rta[1]
+        return -self._beta_max_func()[1]
 
     @property
     def cl_beta_max(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
-        f = lambda cl: cl / self.cd_cl(cl)
-        rta = fmin(-f, cl0, full_output=True)
+        return float(self._beta_max_func()[0])
+
+    @property
+    def alpha_beta_max(self):
+        f = lambda alpha: self.cl_aoa(alpha) - self.cl_beta_max
+        rta = fsolve(f, x0=self.cl_beta_max*180.0/2.0/np.pi**2)
         return rta[0]
 
     @property
     def cd_min(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
-        rta = fmin(self.cd_cl, x0=cl0, args=self, full_output=True)
+        cl0 = 0.0
+        f = lambda cl: self.cd_cl(cl)
+        rta = fmin(f, x0=cl0, full_output=True, disp=False)
         return rta[1]
+
+    def _b_max_func(self):
+        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        f = lambda cl: - self.b(cl)
+        return fmin(f, x0=cl0, full_output=True, disp=False)
 
     @property
     def b_max(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
-        f = lambda x: - x**1.5 / self.cd_cl(x)
-        rta = fmin(f,x0=cl0, full_output=True)
-        return -rta[1]
+        return -self._b_max_func()[1]
 
+    @property
+    def cl_b_max(self):
+        return self._b_max_func()[0]
 
-    def get_airfoil_characteristics(self, reynold):
+    @property
+    def dbeta_dalpha(self):
+        """"Return the slope of beta=f(alpha) at beta max"""
+        f = lambda alpha: self.beta(self.cl_aoa(alpha))
+        return derivative(f, x0=self.alpha_beta_max, dx=1e-4, n=1)
+
+    @property
+    def cuspide(self):
+        """ Return the radius if curvature of cl=f(alpha) at cl_max.
+        The biggest this value is, the smother the stall is """
+        dcl_dalpha1 = derivative(self.cl_aoa, x0=self.alpha_cl_max, dx=0.001, n=1)
+        dcl_dalpha2 = derivative(self.cl_aoa, x0=self.alpha_cl_max, dx=0.001, n=2)
+        return (1+dcl_dalpha1**2)**1.5/abs(dcl_dalpha2)
+
+    def get_airfoil_characteristics(self, reynolds):
+        self.AIRFOIL_DATA[reynolds]['Cl_max'] = self.cl_max
+        self.AIRFOIL_DATA[reynolds]['beta_max'] = self.beta_max
+        self.AIRFOIL_DATA[reynolds]['CL_betamax'] = self.cl_beta_max
+        self.AIRFOIL_DATA[reynolds]['alpha_betamax'] = self.alpha_beta_max
+        self.AIRFOIL_DATA[reynolds]['dbeta_dalpha'] = self.dbeta_dalpha
+        self.AIRFOIL_DATA[reynolds]['b_max'] = self.b_max
+        self.AIRFOIL_DATA[reynolds]['CD_min'] = self.cd_min
+        self.AIRFOIL_DATA[reynolds]['CL_CD_max'] = self.cl_max / self.cd_min
+        self.AIRFOIL_DATA[reynolds]['cuspide'] = self.cuspide
+
+    def get_airfoil_characteristics_old(self, reynold):
         self.AIRFOIL_DATA[reynold]['keys']=[]
         c2 = 0
         c3 = 0
@@ -256,29 +317,29 @@ class Airfoil:
         y_data = float(polar_data.split()[1])
         if block == 1:
             if data_set == 1:
-                self.AIRFOIL_DATA['Re_3']['AoA_Cl'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re3']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 2:
-                self.AIRFOIL_DATA['Re_6']['AoA_Cl'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re6']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 3:
-                self.AIRFOIL_DATA['Re_9']['AoA_Cl'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re9']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 4:
                 self.AIRFOIL_DATA['std']['AoA_Cl'].append((x_data, y_data))
             elif data_set == 7:
-                self.AIRFOIL_DATA['Re_3']['AoA_Cm'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re3']['AoA_Cm'].append((x_data, y_data))
             elif data_set == 8:
-                self.AIRFOIL_DATA['Re_6']['AoA_Cm'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re6']['AoA_Cm'].append((x_data, y_data))
             elif data_set == 9:
-                self.AIRFOIL_DATA['Re_9']['AoA_Cm'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re9']['AoA_Cm'].append((x_data, y_data))
             elif data_set == 10:
                 self.AIRFOIL_DATA['std']['AoA_Cm'].append((x_data, y_data))
 
         elif block == 2:
             if data_set == 1:
-                self.AIRFOIL_DATA['Re_3']['Cl_Cd'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re3']['Cl_Cd'].append((x_data, y_data))
             elif data_set == 2:
-                self.AIRFOIL_DATA['Re_6']['Cl_Cd'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re6']['Cl_Cd'].append((x_data, y_data))
             elif data_set == 3:
-                self.AIRFOIL_DATA['Re_9']['Cl_Cd'].append((x_data, y_data))
+                self.AIRFOIL_DATA['Re9']['Cl_Cd'].append((x_data, y_data))
             elif data_set == 4:
                 self.AIRFOIL_DATA['std']['Cl_Cd'].append((x_data, y_data))
 
