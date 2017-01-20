@@ -62,18 +62,34 @@ class Airfoil:
         logger.debug("cl_sos called with aoa = %r deg", alpha)
         aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
         cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        if len(cl_l) == 0 or len(aoa_l) == 0:
+            raise self.DataNotAvailableError
         aoa_l.reverse()
         cl_l.reverse()
-        spline = interpolate.splrep(aoa_l, cl_l, s=0)
-        return interpolate.splev(alpha, spline, der=0)
+        try:
+            spline = interpolate.splrep(aoa_l, cl_l, s=0)
+            cl_out = interpolate.splev(alpha, spline, der=0)
+        except ValueError:
+            logger.warning("Fail to interpolate cl vs alpha curve with spline for Re=%r",self.reynold)
+            fit = interpolate.interp1d(aoa_l, cl_l, fill_value="extrapolate")
+            cl_out = fit(alpha)
+        return cl_out
 
     def cd_cl(self, cl_input):
         cl_l = [cl for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
         cd_l = [cd for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
+        if len(cl_l) == 0 or len(cd_l) == 0:
+            raise self.DataNotAvailableError
         cl_l.reverse()
         cd_l.reverse()
-        spline = interpolate.splrep(cl_l, cd_l, s=0)
-        return interpolate.splev(cl_input, spline, der=0)
+        try:
+            spline = interpolate.splrep(cl_l, cd_l, s=0)
+            cd_out = interpolate.splev(cl_input, spline, der=0)
+        except ValueError:
+            logger.warning("Fail to interpolate cd vs cl curve with spline for Re=%r", self.reynold)
+            fit = interpolate.interp1d(cl_l, cd_l, fill_value="extrapolate")
+            cd_out = fit(cl_input)
+        return cd_out
 
     def cd_aoa(self, alpha):
         return self.cd_cl(self.cl_aoa(alpha))
