@@ -230,6 +230,13 @@ class Airfoil:
             return float('Inf')
         return float((1+dcl_dalpha1**2)**1.5/abs(dcl_dalpha2))
 
+    @property
+    def cm0(self):
+        """ Return the moment coefficient around the leading edge of the airfoil
+        for the linear part, assuming it is constant."""
+        cm0_l = [self.cm_aoa(aoa, self.reynold_number) for aoa in np.linspace(-5, 10, 15)]
+        return np.mean(cm0_l)
+
     def get_airfoil_characteristics(self):
         for re in self.reynolds:
             self.reynold_key = re
@@ -248,10 +255,18 @@ class Airfoil:
                     self.AIRFOIL_DATA[re]['b_max'] = self.b_max
                     self.AIRFOIL_DATA[re]['CD_min'] = self.cd_min
                     self.AIRFOIL_DATA[re]['CL_CD_max'] = self.cl_max / self.cd_min
+
                 except self.DataNotAvailableError:
                     logger.warning("Not cd vs cl data available for reynolds %r", re)
                     gen = (ch for ch in self.characteristics if ch not in ['Cl_max', 'cuspide'])
                     for ch in gen: self.AIRFOIL_DATA[re][ch]=float('Nan')
+
+            try:
+                self.AIRFOIL_DATA[re]['CM0'] = self.cm0
+            except self.DataNotAvailableError:
+                logger.warning("Not cm vs aoa data available for reynolds %r", re)
+                self.AIRFOIL_DATA[re]['CM0'] = float('Nan')
+
 
     def get_airfoil_characteristics_old(self, reynold):
         self.AIRFOIL_DATA[reynold]['keys']=[]
