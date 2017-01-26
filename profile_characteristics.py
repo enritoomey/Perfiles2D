@@ -58,7 +58,57 @@ class Airfoil:
             else:
                 i += 1
 
-    def cl_aoa(self, alpha):
+    def build_airfoil_functions(self):
+        self._build_cl_aoa()
+        self._build_cd_cl()
+        self._build_cm_aoa()
+
+    def _build_cl_aoa(self):
+        aoa_l = [[aoa for aoa, cl in self.AIRFOIL_DATA["Re{}".format(re)]["AoA_Cl"]] for re in [3, 6, 9]]
+        cl_l = [[cl for aoa, cl in self.AIRFOIL_DATA["Re{}".format(re)]["AoA_Cl"]] for re in [3, 6, 9]]
+        re_l = [[re for i in range(len(aoa))] for aoa, re in zip(aoa_l, [3e6, 6e6, 9e6])]
+        aoa_points = aoa_l[0] + aoa_l[1] + aoa_l[2]
+        cl_points = cl_l[0] + cl_l[1] + cl_l[2]
+        re_points = re_l[0] + re_l[1] + re_l[2]
+        bisplrep = interpolate.bisplrep(aoa_points, re_points, cl_points, s=0.5, kx=4, ky=2)
+        self.cl_aoa_func = bisplrep
+
+    def _build_cd_cl(self):
+        cl_l = [[cl for cl, cd in self.AIRFOIL_DATA["Re{}".format(re)]["Cl_Cd"]] for re in [3, 6, 9]]
+        cd_l = [[cd for cl, cd in self.AIRFOIL_DATA["Re{}".format(re)]["Cl_Cd"]] for re in [3, 6, 9]]
+        re_l = [[re for i in range(len(cl))] for cl, re in zip(cl_l, [3e6, 6e6, 9e6])]
+        cl_points = cl_l[0] + cl_l[1] + cl_l[2]
+        cd_points = cd_l[0] + cd_l[1] + cd_l[2]
+        re_points = re_l[0] + re_l[1] + re_l[2]
+        bisplrep = interpolate.bisplrep(cl_points, re_points, cd_points, s=0.5, kx=4, ky=2)
+        self.cd_cl_func = bisplrep
+
+    def _build_cm_aoa(self):
+        aoa_l = [[aoa for aoa, cl in self.AIRFOIL_DATA["Re{}".format(re)]["AoA_Cm"]] for re in [3, 6, 9]]
+        cm_l = [[cl for aoa, cl in self.AIRFOIL_DATA["Re{}".format(re)]["AoA_Cm"]] for re in [3, 6, 9]]
+        re_l = [[re for i in range(len(aoa))] for aoa, re in zip(aoa_l, [3e6, 6e6, 9e6])]
+        aoa_points = aoa_l[0] + aoa_l[1] + aoa_l[2]
+        cm_points = cm_l[0] + cm_l[1] + cm_l[2]
+        re_points = re_l[0] + re_l[1] + re_l[2]
+        bisplrep = interpolate.bisplrep(aoa_points, re_points, cm_points, s=0.5, kx=4, ky=2)
+        self.cm_aoa_func = bisplrep
+
+    def cl_aoa(self, alpha, reynold=None):
+        if reynold == None:
+            reynold = self.reynold_number
+        return interpolate.bisplev(alpha, reynold, self.cl_aoa_func)
+
+    def cd_cl(self, cl, reynold=None):
+        if reynold == None:
+            reynold = self.reynold_number
+        return interpolate.bisplev(cl, reynold, self.cd_cl_func)
+
+    def cm_aoa(self, alpha, reynold=None):
+        if reynold == None:
+            reynold = self.reynold_number
+        return interpolate.bisplev(alpha, reynold, self.cm_aoa_func)
+
+    def cl_aoa_data(self, alpha):
         logger.debug("cl_sos called with aoa = %r deg", alpha)
         aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
         cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
@@ -112,7 +162,7 @@ class Airfoil:
 
     def _cl_max_func(self):
         alpha_0 = 0.0
-        f = lambda alpha: -self.cl_aoa(alpha)
+        f = lambda alpha: -self.cl_aoa(alpha, self.reynold_number)
         return fmin(f, x0=alpha_0, full_output=True, disp=False)
 
     @property
@@ -124,7 +174,7 @@ class Airfoil:
         return self._cl_max_func()[0]
 
     def _beta_max_func(self):
-        cl0 = 0.0
+        cl0 = 1.0
         f = lambda cl: -1.0 * self.beta(cl)
         return fmin(f, x0=cl0, full_output=True, disp=False)
 
