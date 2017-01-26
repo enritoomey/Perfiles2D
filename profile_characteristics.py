@@ -28,8 +28,10 @@ class Airfoil:
         for re in self.reynolds.keys():
             self.AIRFOIL_DATA[re] = {'AoA_Cl': [], 'AoA_Cm': [], 'Cl_Cd': []}
         self.lectura_perfiles(file_name)
+        self.build_airfoil_functions()
+        self.reynold_key = self.get_reynold_key(reynold)
+        self.reynold_number = reynold
         self.get_airfoil_characteristics()
-        self.reynold = self.get_reynold_key(reynold)
 
     def lectura_perfiles(self, file_name):
         aux_file = open(file_name)
@@ -110,8 +112,8 @@ class Airfoil:
 
     def cl_aoa_data(self, alpha):
         logger.debug("cl_sos called with aoa = %r deg", alpha)
-        aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
-        cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold]['AoA_Cl']]
+        aoa_l = [aoa for aoa, cl in self.AIRFOIL_DATA[self.reynold_key]['AoA_Cl']]
+        cl_l = [cl for aoa, cl in self.AIRFOIL_DATA[self.reynold_key]['AoA_Cl']]
         if len(cl_l) == 0 or len(aoa_l) == 0:
             raise self.DataNotAvailableError
         aoa_l.reverse()
@@ -120,14 +122,14 @@ class Airfoil:
             spline = interpolate.splrep(aoa_l, cl_l, s=0)
             cl_out = interpolate.splev(alpha, spline, der=0)
         except ValueError:
-            logger.warning("Fail to interpolate cl vs alpha curve with spline for Re=%r",self.reynold)
+            logger.warning("Fail to interpolate cl vs alpha curve with spline for Re=%r",self.reynold_number)
             fit = interpolate.interp1d(aoa_l, cl_l, fill_value="extrapolate")
             cl_out = fit(alpha)
         return cl_out
 
-    def cd_cl(self, cl_input):
-        cl_l = [cl for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
-        cd_l = [cd for cl, cd in self.AIRFOIL_DATA[self.reynold]['Cl_Cd']]
+    def cd_cl_data(self, cl_input):
+        cl_l = [cl for cl, cd in self.AIRFOIL_DATA[self.reynold_key]['Cl_Cd']]
+        cd_l = [cd for cl, cd in self.AIRFOIL_DATA[self.reynold_key]['Cl_Cd']]
         if len(cl_l) == 0 or len(cd_l) == 0:
             raise self.DataNotAvailableError
         cl_l.reverse()
@@ -136,7 +138,7 @@ class Airfoil:
             spline = interpolate.splrep(cl_l, cd_l, s=0)
             cd_out = interpolate.splev(cl_input, spline, der=0)
         except ValueError:
-            logger.warning("Fail to interpolate cd vs cl curve with spline for Re=%r", self.reynold)
+            logger.warning("Fail to interpolate cd vs cl curve with spline for Re=%r", self.reynold_number)
             fit = interpolate.interp1d(cl_l, cd_l, fill_value="extrapolate")
             cd_out = fit(cl_input)
         return cd_out
@@ -144,9 +146,9 @@ class Airfoil:
     def cd_aoa(self, alpha):
         return self.cd_cl(self.cl_aoa(alpha))
 
-    def cm_aoa(self, alpha):
-        aoa_l = [aoa for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
-        cm_l = [cm for aoa, cm in self.AIRFOIL_DATA[self.reynold]['AoA_Cm']]
+    def cm_aoa_data(self, alpha):
+        aoa_l = [aoa for aoa, cm in self.AIRFOIL_DATA[self.reynold_key]['AoA_Cm']]
+        cm_l = [cm for aoa, cm in self.AIRFOIL_DATA[self.reynold_key]['AoA_Cm']]
         if len(aoa_l) == 0 or len(cm_l) == 0:
             raise self.DataNotAvailableError
         aoa_l.reverse()
@@ -200,7 +202,7 @@ class Airfoil:
         return rta[1]
 
     def _b_max_func(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold]['Cl_Cd'][0][0]
+        cl0 = self.AIRFOIL_DATA[self.reynold_key]['Cl_Cd'][0][0]
         f = lambda cl: - self.b(cl)
         return fmin(f, x0=cl0, full_output=True, disp=False)
 
@@ -230,7 +232,7 @@ class Airfoil:
 
     def get_airfoil_characteristics(self):
         for re in self.reynolds:
-            self.reynold = re
+            self.reynold_key = re
             try:
                 self.AIRFOIL_DATA[re]['Cl_max'] = self.cl_max
                 self.AIRFOIL_DATA[re]['cuspide'] = self.cuspide
