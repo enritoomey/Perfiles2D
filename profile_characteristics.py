@@ -202,7 +202,7 @@ class Airfoil:
         return rta[1]
 
     def _b_max_func(self):
-        cl0 = self.AIRFOIL_DATA[self.reynold_key]['Cl_Cd'][0][0]
+        cl0 = 1.0
         f = lambda cl: - self.b(cl)
         return fmin(f, x0=cl0, full_output=True, disp=False)
 
@@ -240,8 +240,9 @@ class Airfoil:
     def get_airfoil_characteristics(self):
         for re in self.reynolds:
             self.reynold_key = re
+            self.reynold_number = self.reynolds[re]
             try:
-                self.AIRFOIL_DATA[re]['Cl_max'] = self.cl_max
+                self.AIRFOIL_DATA[re]['CL_max'] = self.cl_max
                 self.AIRFOIL_DATA[re]['cuspide'] = self.cuspide
             except self.DataNotAvailableError:
                 logger.warning("Not cl vs alpha data available for reynolds %r", re)
