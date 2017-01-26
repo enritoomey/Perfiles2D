@@ -17,7 +17,7 @@ class Airfoil:
     class DataNotAvailableError(Exception):
         pass
 
-    def __init__(self, file_name, reynold=4e3):
+    def __init__(self, file_name, reynold=4e6):
         logger.debug("Initializing airfoil %r with Reynolds %r", file_name, reynold)
         self.file_name = file_name
         self.reynolds = {'Re3':3e6, 'Re6':6e6, 'Re9':9e6, 'std':0}
