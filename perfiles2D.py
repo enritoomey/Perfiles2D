@@ -21,21 +21,31 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         # Generamos dos figuras, cada una luego asociada a un canvas, que a su vez tiene como padre una de las pestanias
         # self.tab -> contiene la pestania titulada "Diagrama P-S"
         # self.tab_2 -> contiene la pestania titulada "Diagrama T-S"
-        self.fig1 = Figure(figsize=(4.8, 3.4), dpi=72, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))
+        self.fig1 = Figure(dpi=72, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))#figsize=(4.8, 3.4),
         self.axes1 = self.fig1.add_subplot(111)
         self.axes1.set_ylabel('Cl')
         self.axes1.set_xlabel('AoA')
-        self.fig2 = Figure(figsize=(4.8, 3.4), dpi=72, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))
+        self.fig2 = Figure(dpi=72, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))# figsize=(4.8, 3.4),
         self.axes2 = self.fig2.add_subplot(111)
         self.axes2.set_ylabel('Cd')
         self.axes2.set_xlabel('Cl')
+        self.fig3 = Figure(dpi=72, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))
+        self.axes3 = self.fig3.add_subplot(1,1,1)
+        self.axes3.set_ylabel('Cm0')
+        self.axes3.set_xlabel('AoA')
         # generate the canvas to display the plot
         self.canvas1 = FigureCanvas(self.fig1)
         self.canvas1.setParent(self.frame_ClAlpha)
+        self.canvas1.resize(self.frame_ClAlpha.width(), self.frame_ClAlpha.height())
         self.canvas1.show()
         self.canvas2 = FigureCanvas(self.fig2)
         self.canvas2.setParent(self.frame_CdCl)
+        self.canvas2.resize(self.frame_CdCl.width(), self.frame_ClAlpha.height())
         self.canvas2.show()
+        self.canvas3 = FigureCanvas(self.fig3)
+        self.canvas3.setParent(self.frame_CmAlpha)
+        self.canvas3.resize(self.frame_CmAlpha.width(), self.frame_CmAlpha.height())
+        self.canvas3.show()
         #Ponemos el primer checkbox en "checked"
         self.checkBox_Re3.setCheckState(Qt.Checked)
         # Cargamos los numeros de Reynolds
@@ -78,6 +88,7 @@ class MainDialog(QDialog, layout.Ui_Dialog):
     def plotGraph(self):
         self.axes1.clear()
         self.axes2.clear()
+        self.axes3.clear()
 
         if self.checkBox_Re3.isChecked():
             self.plotReynolds('Re3', 'b')
@@ -93,14 +104,18 @@ class MainDialog(QDialog, layout.Ui_Dialog):
 
         self.canvas1.draw()
         self.canvas2.draw()
+        self.canvas3.draw()
 
     def plotReynolds(self, reynolds, color):
         x1 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
         y1 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
         x2 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['Cl_Cd']]
         y2 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['Cl_Cd']]
+        x3 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cm']]
+        y3 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cm']]
         self.axes1.plot(x1, y1, color)
         self.axes2.plot(x2, y2, color)
+        self.axes3.plot(x3, y3, color)
 
 app = QApplication(sys.argv)
 form = MainDialog()
