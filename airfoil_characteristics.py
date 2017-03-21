@@ -1,5 +1,5 @@
 # -*- coding: iso-8859-1 -*-
-from scipy import interpolate
+from scipy import interpolate, polyfit
 from scipy.optimize import fmin, fsolve
 from scipy.misc import derivative
 import logging
@@ -166,6 +166,18 @@ class Airfoil:
         alpha_0 = 0.0
         f = lambda alpha: -self.cl_aoa(alpha, self.reynold_number)
         return fmin(f, x0=alpha_0, full_output=True, disp=False)
+
+    @property
+    def a2d(self):
+        alphas = np.arange(start=-5, stop=10, step=0.5)
+        cls = np.array([self.cl_aoa(alpha) for alpha in alphas])
+        rta = polyfit(alphas, cls, 1)
+        return rta[0]
+
+    @property
+    def alpha0(self):
+        rta = fsolve(self.cl_aoa, x0=0.0)
+        return rta[0]
 
     @property
     def cl_max(self):
