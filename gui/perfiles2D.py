@@ -36,6 +36,7 @@ class PerfilesDialog(QDialog, layout.Ui_Dialog):
         # generate the canvas to display the plot
         self.canvas1 = FigureCanvas(self.fig1)
         self.canvas1.setParent(self.frame_ClAlpha)
+        # TODO resize canvas so that horizontal axis label is inside the frame
         self.canvas1.resize(self.frame_ClAlpha.width(), self.frame_ClAlpha.height())
         self.canvas1.show()
         self.canvas2 = FigureCanvas(self.fig2)
@@ -85,6 +86,8 @@ class PerfilesDialog(QDialog, layout.Ui_Dialog):
         self.labelPerfil.setText('Datos Perfil:  NACA '+nombrePerfil)
         self.plotGraph()
 
+    # TODO: add a save button to save matrix to excel or csv
+
     def plotGraph(self):
         self.axes1.clear()
         self.axes2.clear()
@@ -113,6 +116,7 @@ class PerfilesDialog(QDialog, layout.Ui_Dialog):
         y2 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['Cl_Cd']]
         x3 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cm']]
         y3 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cm']]
+        # TODO: add grid to plots
         self.axes1.plot(x1, y1, color)
         self.axes2.plot(x2, y2, color)
         self.axes3.plot(x3, y3, color)
