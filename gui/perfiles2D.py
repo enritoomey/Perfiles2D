@@ -1,6 +1,6 @@
 __author__ = 'Enriquito'
 import gui.layout_lecturaPerfil as layout
-import perfiles.airfoil_characteristics as profile
+from perfiles.airfoil_characteristics import Airfoil
 from PySide.QtCore import *
 from PySide.QtGui import *
 import sys
@@ -12,10 +12,10 @@ matplotlib.rcParams['backend.qt4']='PySide'
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-class MainDialog(QDialog, layout.Ui_Dialog):
+class PerfilesDialog(QDialog, layout.Ui_Dialog):
 
     def __init__(self, parent=None):
-        super(MainDialog, self).__init__(parent)
+        super(PerfilesDialog, self).__init__(parent)
         self.setupUi(self)
 
         # Generamos dos figuras, cada una luego asociada a un canvas, que a su vez tiene como padre una de las pestanias
@@ -72,7 +72,7 @@ class MainDialog(QDialog, layout.Ui_Dialog):
     def Open(self):
         dir = '.'
         fileAdress = QFileDialog.getOpenFileName(self,"Selecionar Perfil",dir,filter="Text File (*.txt)")
-        self.airfoil = profile.Airfoil(fileAdress[0])
+        self.airfoil = Airfoil(fileAdress[0])
         #print self.airfoil.AIRFOIL_DATA
 
         for j in range(len(self.Reynolds)):
@@ -118,6 +118,6 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         self.axes3.plot(x3, y3, color)
 
 app = QApplication(sys.argv)
-form = MainDialog()
+form = PerfilesDialog()
 form.show()
 app.exec_()
