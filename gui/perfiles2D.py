@@ -106,7 +106,6 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         self.canvas2.draw()
         self.canvas3.draw()
 
-    # TODO: pobablemente esto tiene que ser un metodo de la clase Airfoil
     def plotReynolds(self, reynolds, color):
         x1 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
         y1 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
