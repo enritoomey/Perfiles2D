@@ -1,5 +1,5 @@
 __author__ = 'Enriquito'
-import layout_lecturaPerfil as layout
+import gui.layout_lecturaPerfil as layout
 import airfoil_characteristics as profile
 from PySide.QtCore import *
 from PySide.QtGui import *

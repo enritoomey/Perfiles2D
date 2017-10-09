@@ -1,5 +1,5 @@
 import unittest
-from airfoil_characteristics import Airfoil
+from perfiles.airfoil_characteristics import Airfoil
 import logging
 
 logging.basicConfig(level=logging.INFO)
