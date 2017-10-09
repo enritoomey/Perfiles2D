@@ -1,6 +1,6 @@
 __author__ = 'Enriquito'
 import gui.layout_lecturaPerfil as layout
-import airfoil_characteristics as profile
+import perfiles.airfoil_characteristics as profile
 from PySide.QtCore import *
 from PySide.QtGui import *
 import sys
@@ -106,6 +106,7 @@ class MainDialog(QDialog, layout.Ui_Dialog):
         self.canvas2.draw()
         self.canvas3.draw()
 
+    # TODO: pobablemente esto tiene que ser un metodo de la clase Airfoil
     def plotReynolds(self, reynolds, color):
         x1 = [value[0] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
         y1 = [value[1] for value in self.airfoil.AIRFOIL_DATA[reynolds]['AoA_Cl']]
